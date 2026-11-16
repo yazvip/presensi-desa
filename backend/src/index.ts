@@ -20,12 +20,8 @@ export async function buildServer() {
 
   app.get("/health", async () => ({ ok: true, service: "presensi-desa-api", ts: new Date().toISOString() }));
 
-  await app.register(authRoutes);
-  await app.register(attendanceRoutes);
-  await app.register(adminRoutes);
-  await app.register(superadminRoutes);
-  await app.register(integrityRoutes);
-
+  // Harus dipasang SEBELUM register(): konteks anak menyalin error handler
+  // saat dibuat, jadi handler yang dipasang belakangan tidak dipakai rute plugin.
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof ZodError) {
       return reply.code(400).send({
@@ -45,6 +41,12 @@ export async function buildServer() {
       message: status >= 500 ? "Terjadi kesalahan pada server." : err.message,
     });
   });
+
+  await app.register(authRoutes);
+  await app.register(attendanceRoutes);
+  await app.register(adminRoutes);
+  await app.register(superadminRoutes);
+  await app.register(integrityRoutes);
 
   return app;
 }
