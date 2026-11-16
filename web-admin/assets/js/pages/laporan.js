@@ -151,7 +151,7 @@ window.Pages.anomali = async function (host) {
     '<span><i class="fas fa-exclamation-triangle mr-2"></i>Anomali</span>' +
     '<select class="form-control form-control-sm mt-2 mt-sm-0" id="f-days" style="width:auto">' +
     '<option value="7">7 hari</option><option value="30" selected>30 hari</option><option value="90">90 hari</option></select>' +
-    "</div><div class="card-body" id="anom-box"></div></div>";
+    '</div><div class="card-body" id="anom-box"></div></div>';
 
   document.getElementById("f-days").addEventListener("change", load);
 

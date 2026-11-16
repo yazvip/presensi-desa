@@ -18,8 +18,8 @@ android {
         versionCode = 1
         versionName = "0.1.0"
 
-        // Diisi CI: -PAPI_BASE_URL=https://api.contoh.desa/
-        val base = (project.findProperty("API_BASE_URL") as String?) ?: "http://10.0.2.2:8080/"
+        // Default produksi; CI dapat menimpanya lewat -PAPI_BASE_URL=...
+        val base = (project.findProperty("API_BASE_URL") as String?) ?: "https://absen.talangarah.web.id/"
         buildConfigField("String", "API_BASE_URL", "\"$base\"")
     }
 

@@ -7,7 +7,7 @@ window.Pages.audit = async function (host) {
     '<span><i class="fas fa-clipboard-list mr-2"></i>Audit Log</span>' +
     '<select class="form-control form-control-sm mt-2 mt-sm-0" id="f-limit" style="width:auto">' +
     '<option value="100">100 terbaru</option><option value="200" selected>200 terbaru</option><option value="500">500 terbaru</option></select>' +
-    "</div><div class="card-body" id="audit-box"></div></div>";
+    '</div><div class="card-body" id="audit-box"></div></div>';
 
   document.getElementById("f-limit").addEventListener("change", load);
 

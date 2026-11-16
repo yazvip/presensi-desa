@@ -312,7 +312,7 @@ window.Pages.jadwal = async function (host) {
     '<div class="card"><div class="card-header d-flex flex-wrap justify-content-between align-items-center">' +
     '<span><i class="fas fa-clock mr-2"></i>Jam Kerja Desa</span>' +
     '<button class="btn btn-primary btn-sm mt-2 mt-sm-0" id="btn-save"><i class="fas fa-save mr-1"></i>Simpan</button>' +
-    "</div><div class="card-body" id="sched-box"></div></div>";
+    '</div><div class="card-body" id="sched-box"></div></div>';
 
   const data = await api.get("/admin/schedule");
   const days = data.days || [];

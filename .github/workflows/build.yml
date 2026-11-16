@@ -79,7 +79,7 @@ jobs:
         env:
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
         run: |
-          BASE="${API_BASE_URL:-https://presensi.example.desa/}"
+          BASE="${API_BASE_URL:-https://absen.talangarah.web.id/}"
           gradle --no-daemon --stacktrace assembleDebug -PAPI_BASE_URL="$BASE"
 
       - name: Unggah APK

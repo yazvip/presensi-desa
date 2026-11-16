@@ -11,7 +11,12 @@ import superadminRoutes from "./routes/superadmin.js";
 import integrityRoutes from "./routes/integrity.js";
 
 export async function buildServer() {
-  const app = Fastify({ logger: { level: process.env.LOG_LEVEL ?? "info" } });
+  // trustProxy: API hanya mendengar di loopback, jadi X-Forwarded-For dari
+  // nginx boleh dipercaya — IP pelaku di audit log jadi IP asli, bukan 127.0.0.1.
+  const app = Fastify({
+    logger: { level: process.env.LOG_LEVEL ?? "info" },
+    trustProxy: true,
+  });
 
   await app.register(cors, { origin: corsOrigins, credentials: true });
 
