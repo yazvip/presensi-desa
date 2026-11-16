@@ -138,6 +138,7 @@ async function bindDevice(
 
 /** Terbitkan access + refresh token untuk perangkat yang sudah terverifikasi. */
 async function issueSession(
+  c: Queryable,
   user: { id: string; village_id: string | null; role: string },
   deviceId: string,
   ip: string | null,
@@ -151,12 +152,15 @@ async function issueSession(
 
   const refresh = randomToken(48);
   const expires = new Date(Date.now() + env.REFRESH_TTL_DAYS * 86_400_000);
-  await pool.query(
+  // Wajib memakai klien transaksi pemanggil: baris devices baru terlihat oleh
+  // transaksi itu, bukan oleh pool. Memakai pool di sini melanggar FK
+  // refresh_tokens.device_id tepat saat aktivasi.
+  await c.query(
     `insert into refresh_tokens (user_id, device_id, token_hash, expires_at)
      values ($1,$2,$3,$4)`,
     [user.id, deviceId, sha256Hex(refresh), expires],
   );
-  await pool.query("update devices set last_seen_at = now(), last_ip = $2 where id = $1", [
+  await c.query("update devices set last_seen_at = now(), last_ip = $2 where id = $1", [
     deviceId,
     ip,
   ]);
@@ -214,7 +218,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
         ip: req.ip ?? null,
       });
 
-      const session = await issueSession(user, device.id, req.ip ?? null);
+      const session = await issueSession(c, user, device.id, req.ip ?? null);
       return {
         ...session,
         user: publicUser(user),
@@ -248,7 +252,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
         ip: req.ip ?? null,
       });
 
-      const session = await issueSession(user, device.id, req.ip ?? null);
+      const session = await issueSession(c, user, device.id, req.ip ?? null);
       return {
         ...session,
         user: publicUser(user),
@@ -357,7 +361,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
       }
 
       await c.query("update auth_challenges set used_at = now() where id = $1", [challenge.id]);
-      const session = await issueSession(user, user.id === "" ? "" : body.deviceId, req.ip ?? null);
+      const session = await issueSession(c, user, body.deviceId, req.ip ?? null);
       return { ...session, user: publicUser(user) };
     });
   });
@@ -392,6 +396,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
 
       await c.query("update refresh_tokens set revoked_at = now() where id = $1", [row.id]);
       return issueSession(
+        c,
         { id: row.user_id, village_id: row.village_id, role: row.role },
         row.device_id,
         req.ip ?? null,
