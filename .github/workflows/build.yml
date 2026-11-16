@@ -79,8 +79,10 @@ jobs:
         env:
           API_BASE_URL: ${{ secrets.API_BASE_URL }}
         run: |
+          set -o pipefail
           BASE="${API_BASE_URL:-https://absen.talangarah.web.id/}"
-          gradle --no-daemon --stacktrace assembleDebug -PAPI_BASE_URL="$BASE"
+          gradle --no-daemon --stacktrace assembleDebug -PAPI_BASE_URL="$BASE" 2>&1 \
+            | tee "$RUNNER_TEMP/build.log"
 
       - name: Unggah APK
         uses: actions/upload-artifact@v4
@@ -89,3 +91,56 @@ jobs:
           path: android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Simpan log build
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: ${{ runner.temp }}/build.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  status:
+    name: Ringkasan status ke branch ci-status
+    needs: [backend, android]
+    if: always() && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Ambil log build bila ada
+        uses: actions/download-artifact@v4
+        with:
+          name: build-log
+          path: build-log
+        continue-on-error: true
+
+      - name: Tulis dan dorong ringkasan
+        env:
+          TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          COMMIT: ${{ github.sha }}
+          BACKEND: ${{ needs.backend.result }}
+          ANDROID: ${{ needs.android.result }}
+        run: |
+          set -eu
+          mkdir -p /tmp/publish
+          cd /tmp/publish
+          {
+            echo "commit: $COMMIT"
+            echo "waktu: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "backend: $BACKEND"
+            echo "android: $ANDROID"
+          } > status.txt
+          if [ -f "$GITHUB_WORKSPACE/build-log/build.log" ]; then
+            tail -c 60000 "$GITHUB_WORKSPACE/build-log/build.log" > build.log
+          else
+            echo "(log build tidak tersedia)" > build.log
+          fi
+          git init -q
+          git checkout -q -b ci-status
+          git add status.txt build.log
+          git -c user.name=ci-status -c user.email=ci-status@users.noreply.github.com \
+              commit -q -m "status $COMMIT: backend=$BACKEND android=$ANDROID"
+          git push -f "https://x-access-token:$TOKEN@github.com/$REPO.git" ci-status
