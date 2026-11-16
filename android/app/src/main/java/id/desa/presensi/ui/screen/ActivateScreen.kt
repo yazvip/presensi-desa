@@ -73,7 +73,7 @@ fun ActivateScreen(
 
                 OutlinedTextField(
                     value = code,
-                    onValueChange = { if (it.length <= 8 && it.all(Char::isDigit)) code = it },
+                    onValueChange = { v -> if (v.length <= 8 && v.all { it.isDigit() }) code = v },
                     label = { Text("Kode aktivasi") },
                     singleLine = true,
                     enabled = !state.busy,
@@ -90,7 +90,7 @@ fun ActivateScreen(
 
                 OutlinedTextField(
                     value = pin,
-                    onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) pin = it },
+                    onValueChange = { v -> if (v.length <= 6 && v.all { it.isDigit() }) pin = v },
                     label = { Text("PIN baru (6 digit)") },
                     singleLine = true,
                     enabled = !state.busy,
@@ -102,7 +102,7 @@ fun ActivateScreen(
 
                 OutlinedTextField(
                     value = pinConfirm,
-                    onValueChange = { if (it.length <= 6 && it.all(Char::isDigit)) pinConfirm = it },
+                    onValueChange = { v -> if (v.length <= 6 && v.all { it.isDigit() }) pinConfirm = v },
                     label = { Text("Ulangi PIN") },
                     singleLine = true,
                     isError = pinConfirm.length == 6 && pinConfirm != pin,

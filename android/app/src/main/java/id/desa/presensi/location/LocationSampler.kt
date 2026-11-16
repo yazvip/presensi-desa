@@ -21,7 +21,6 @@ import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
-import kotlin.time.Duration.Companion.seconds
 
 /**
  * Ambil sampel GPS "best of 3": tiga pembacaan berjarak 1,5 detik, backend memilih
@@ -48,7 +47,8 @@ class LocationSampler(private val context: Context) {
         if (!hasPermission()) return emptyList()
 
         val collected = mutableListOf<GpsSample>()
-        withTimeoutOrNull(15.seconds) {
+        // 15 detik dalam milidetik: overload Duration butuh opt-in di coroutines 1.9.
+        withTimeoutOrNull(15_000L) {
             updates()
                 .take(3)
                 .collect { location -> collected += location.toSample() }

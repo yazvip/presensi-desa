@@ -73,7 +73,7 @@ fun LoginScreen(
 
         OutlinedTextField(
             value = pin,
-            onValueChange = { value -> if (value.length <= 6 && value.all(Char::isDigit)) pin = value },
+            onValueChange = { value -> if (value.length <= 6 && value.all { it.isDigit() }) pin = value },
             label = { Text("PIN 6 digit") },
             singleLine = true,
             enabled = !state.busy,
