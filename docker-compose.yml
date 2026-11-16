@@ -1,0 +1,36 @@
+# Presensi Desa — stack VPS (deploy nanti)
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: presensi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-presensi}
+      POSTGRES_DB: presensi
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backend/db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U presensi -d presensi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 8080
+      DATABASE_URL: postgres://presensi:${POSTGRES_PASSWORD:-presensi}@db:5432/presensi
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET wajib diisi}
+      ACCESS_TTL_SEC: 900
+      REFRESH_TTL_DAYS: 30
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    ports:
+      - "127.0.0.1:8080:8080"
+
+volumes:
+  pgdata:

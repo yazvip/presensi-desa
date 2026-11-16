@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Presensi Desa</string>
+    <string name="tagline">Kehadiran perangkat desa, tercatat rapi.</string>
+
+    <string name="login_title">Masuk</string>
+    <string name="login_nipd">NIPD</string>
+    <string name="login_pin">PIN 6 digit</string>
+    <string name="login_action">Masuk</string>
+    <string name="login_activate">Aktivasi perangkat baru</string>
+
+    <string name="activate_title">Aktivasi Perangkat</string>
+    <string name="activate_code">Kode aktivasi</string>
+    <string name="activate_hint">Minta kode 6 digit kepada Pengelola Desa.</string>
+
+    <string name="home_greeting">Selamat pagi</string>
+    <string name="home_clock_in">Absen Masuk</string>
+    <string name="home_clock_out">Absen Pulang</string>
+    <string name="home_scan">Pindai QR Kantor</string>
+
+    <string name="perm_camera">Izin kamera diperlukan untuk memindai QR kantor.</string>
+    <string name="perm_location">Izin lokasi diperlukan untuk memastikan Anda berada di kantor desa.</string>
+
+    <string name="device_bound_title">Perangkat sudah terikat</string>
+    <string name="device_bound_body">Akun ini sudah terdaftar di HP lain. Hubungi Pengelola Desa untuk menghapus key device sebelum memakai HP ini.</string>
+</resources>

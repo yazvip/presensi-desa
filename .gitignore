@@ -1,0 +1,26 @@
+# Node
+node_modules/
+dist/
+*.log
+.env
+.env.local
+
+# Android / Gradle
+.gradle/
+android/local.properties
+android/app/build/
+android/build/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# Workspace sisa Acode
+build/
+out/
+probe/
+proof/
+
+# OS
+.DS_Store
+Thumbs.db
