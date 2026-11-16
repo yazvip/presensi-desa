@@ -52,8 +52,8 @@ export async function buildServer() {
 const isMain = process.argv[1]?.endsWith("index.js") || process.argv[1]?.endsWith("index.ts");
 if (isMain) {
   buildServer()
-    .then((app) => app.listen({ port: env.PORT, host: "0.0.0.0" }))
-    .then(() => console.log(`API siap di :${env.PORT}`))
+    .then((app) => app.listen({ port: env.PORT, host: env.HOST }))
+    .then(() => console.log(`API siap di ${env.HOST}:${env.PORT}`))
     .catch((err) => {
       console.error("Gagal start:", err);
       process.exit(1);
