@@ -2,7 +2,6 @@ package id.desa.presensi.device
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import android.security.keystore.StrongBoxUnavailableException
 import android.util.Base64
 import java.security.KeyPairGenerator
 import java.security.KeyStore
@@ -25,11 +24,9 @@ class DeviceKeyManager(private val alias: String = "presensi_device_key_v1") {
     /** Buat kunci bila belum ada, lalu kembalikan public key-nya. */
     fun ensureKey(): PublicKey? {
         loadPublicKey()?.let { return it }
-        return try {
-            generate(useStrongBox = true) ?: generate(useStrongBox = false)
-        } catch (e: Exception) {
-            null
-        }
+        // StrongBox tidak ada di semua perangkat (dan bisa error di OEM tertentu);
+        // bila gagal, kunci TEE biasa tetap sah dipakai.
+        return generate(useStrongBox = true) ?: generate(useStrongBox = false)
     }
 
     private fun generate(useStrongBox: Boolean): PublicKey? {
@@ -43,7 +40,7 @@ class DeviceKeyManager(private val alias: String = "presensi_device_key_v1") {
             val pair = gen.generateKeyPair()
             strongbox = useStrongBox
             pair.public
-        } catch (e: StrongBoxUnavailableException) {
+        } catch (e: Exception) {
             null
         }
     }

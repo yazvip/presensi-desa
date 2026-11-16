@@ -18,7 +18,6 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.flow.timeout
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
@@ -51,7 +50,6 @@ class LocationSampler(private val context: Context) {
         val collected = mutableListOf<GpsSample>()
         withTimeoutOrNull(15.seconds) {
             updates()
-                .timeout(4.seconds)
                 .take(3)
                 .collect { location -> collected += location.toSample() }
         }
