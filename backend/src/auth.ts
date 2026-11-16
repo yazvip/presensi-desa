@@ -22,6 +22,26 @@ export async function authenticate(req: FastifyRequest, reply: FastifyReply): Pr
     return;
   }
 
+  // Sesi panel web tidak punya perangkat; cukup periksa akunnya.
+  if (claims.ch === "web") {
+    const { rows: userRows } = await pool.query<{ user_status: string }>(
+      "select status as user_status from users where id = $1",
+      [claims.sub],
+    );
+    const akun = userRows[0];
+    if (!akun) {
+      reply.code(401).send({ code: "UNAUTHORIZED", message: "Akun tidak ditemukan." });
+      return;
+    }
+    if (akun.user_status !== "active") {
+      reply.code(403).send({ code: "USER_INACTIVE", message: "Akun Anda dinonaktifkan." });
+      return;
+    }
+    req.claims = claims;
+    req.deviceActive = false;
+    return;
+  }
+
   const { rows } = await pool.query(
     `select d.id, d.status, u.status as user_status
        from devices d join users u on u.id = d.user_id

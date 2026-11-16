@@ -177,6 +177,30 @@ export default async function superadminRoutes(app: FastifyInstance): Promise<vo
     return { ok: true };
   });
 
+  /** Semua perangkat lintas desa — superadmin perlu ini untuk melepas HP terakhir pengelola. */
+  app.get("/super/devices", { preHandler: guard }, async (req) => {
+    const q = z
+      .object({
+        villageId: z.string().uuid().optional(),
+        status: z.enum(["active", "revoked"]).optional(),
+      })
+      .parse(req.query);
+    const { rows } = await pool.query(
+      `select d.id, d.label, d.model, d.manufacturer, d.os_version, d.status,
+              d.first_bound_at, d.last_seen_at, d.revoke_reason,
+              u.nama, u.nipd, u.role, v.nama as village
+         from devices d
+         join users u on u.id = d.user_id
+         left join villages v on v.id = d.village_id
+        where ($1::uuid is null or d.village_id = $1)
+          and ($2::text is null or d.status = $2)
+        order by d.status, d.first_bound_at desc
+        limit 500`,
+      [q.villageId ?? null, q.status ?? null],
+    );
+    return { devices: rows };
+  });
+
   app.get("/super/audit", { preHandler: guard }, async (req) => {
     const q = z.object({ limit: z.coerce.number().max(500).default(100) }).parse(req.query);
     const { rows } = await pool.query(

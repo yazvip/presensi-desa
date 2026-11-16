@@ -264,6 +264,37 @@ export default async function adminRoutes(app: FastifyInstance): Promise<void> {
     return { location: office, qrPayload: `VDS1|${qrCode}|${qrSecret}` };
   });
 
+  /** Muatan QR untuk dicetak. Rahasia hanya keluar lewat endpoint ini. */
+  app.get("/admin/locations/:id/qr", { preHandler: requireManager(app) }, async (req) => {
+    const claims = req.claims!;
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const { rows } = await pool.query(
+      `select id, nama, qr_code, qr_secret, qr_version, qr_printed_at
+         from office_locations where id = $1 and village_id = $2`,
+      [id, claims.vid],
+    );
+    const office = rows[0];
+    if (!office) throw new AppError("NOT_FOUND", "Lokasi tidak ditemukan.", 404);
+    return {
+      id: office.id,
+      nama: office.nama,
+      qrVersion: office.qr_version,
+      printedAt: office.qr_printed_at,
+      qrPayload: `VDS1|${office.qr_code}|${office.qr_secret}`,
+    };
+  });
+
+  app.post("/admin/locations/:id/qr-printed", { preHandler: requireManager(app) }, async (req) => {
+    const claims = req.claims!;
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params);
+    const { rowCount } = await pool.query(
+      "update office_locations set qr_printed_at = now() where id = $1 and village_id = $2",
+      [id, claims.vid],
+    );
+    if (rowCount === 0) throw new AppError("NOT_FOUND", "Lokasi tidak ditemukan.", 404);
+    return { ok: true };
+  });
+
   /* ------------------------------- JADWAL -------------------------------- */
 
   app.get("/admin/schedule", { preHandler: [app.authenticate] }, async (req) => {

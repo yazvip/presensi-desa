@@ -23,9 +23,12 @@ const hmac = (data: string): string =>
 
 export interface JwtClaims {
   sub: string;
+  /** Perangkat pengikat. Kosong untuk sesi panel web. */
   did: string;
   vid: string | null;
   role: string;
+  /** "web" = sesi panel admin; tidak terikat perangkat. */
+  ch?: "app" | "web";
   iat: number;
   exp: number;
 }

@@ -366,6 +366,131 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
+  /* --------------------------- PANEL ADMIN WEB --------------------------- */
+
+  // 8 kegagalan per NIPD+IP menahan percobaan berikutnya selama 15 menit.
+  const webFail = new Map<string, { n: number; until: number }>();
+
+  /**
+   * Login panel web: NIPD + PIN, tanpa perangkat. Hanya superadmin dan
+   * pengelola desa. Token berumur WEB_TTL_SEC dan ditandai ch="web".
+   */
+  app.post("/auth/web-login", async (req) => {
+    const body = z
+      .object({ nipd: z.string().min(1), pin: z.string().regex(/^\d{6}$/) })
+      .parse(req.body);
+
+    const key = `${body.nipd.trim().toLowerCase()}|${req.ip ?? "-"}`;
+    const now = Date.now();
+    const rec = webFail.get(key);
+    if (rec && rec.until > now && rec.n >= 8) {
+      throw new AppError(
+        "TOO_MANY_ATTEMPTS",
+        "Terlalu banyak percobaan gagal. Coba lagi 15 menit lagi.",
+        429,
+      );
+    }
+
+    const { rows } = await pool.query<UserRow & { village_nama: string | null }>(
+      `select u.*, v.nama as village_nama
+         from users u left join villages v on v.id = u.village_id
+        where lower(u.nipd) = lower($1)`,
+      [body.nipd.trim()],
+    );
+    const user = rows[0];
+    const cocok =
+      !!user &&
+      (user.role === "superadmin" || user.role === "admin_desa") &&
+      user.status === "active" &&
+      user.pin_hash !== PENDING_PIN &&
+      verifyPin(body.pin, user.pin_hash);
+
+    if (!cocok) {
+      const n = (rec && rec.until > now ? rec.n : 0) + 1;
+      webFail.set(key, { n, until: now + 15 * 60_000 });
+      throw new AppError(
+        "INVALID_CREDENTIALS",
+        "NIPD atau PIN salah, atau akun ini tidak berhak masuk panel.",
+        401,
+      );
+    }
+    webFail.delete(key);
+
+    const ttl = env.WEB_TTL_SEC;
+    const accessToken = signJwt(
+      { sub: user!.id, did: "", vid: user!.village_id, role: user!.role, ch: "web" },
+      ttl,
+    );
+    await audit(pool, {
+      villageId: user!.village_id,
+      actorId: user!.id,
+      actorRole: user!.role,
+      aksi: "auth.web_login",
+      entitas: "users",
+      entitasId: user!.id,
+      ip: req.ip ?? null,
+    });
+
+    return {
+      accessToken,
+      expiresIn: ttl,
+      user: { ...publicUser(user!), village: user!.village_nama },
+    };
+  });
+
+  /** Profil pemilik token — dipakai panel untuk menggambar header. */
+  app.get("/auth/me", { preHandler: [app.authenticate] }, async (req) => {
+    const claims = req.claims!;
+    const { rows } = await pool.query(
+      `select u.id, u.nama, u.nipd, u.jabatan, u.role, u.status,
+              v.id as village_id, v.nama as village_nama, v.kode_desa,
+              v.kecamatan, v.kabupaten, v.timezone
+         from users u left join villages v on v.id = u.village_id
+        where u.id = $1`,
+      [claims.sub],
+    );
+    return { user: rows[0] ?? null, channel: claims.ch ?? "app" };
+  });
+
+  /** Ganti PIN dari panel web. */
+  app.post("/auth/web-change-pin", { preHandler: [app.authenticate] }, async (req) => {
+    if (req.claims?.ch !== "web") {
+      throw new AppError("FORBIDDEN", "Endpoint ini khusus panel web.", 403);
+    }
+    const body = z
+      .object({
+        currentPin: z.string().regex(/^\d{6}$/),
+        newPin: z.string().regex(/^\d{6}$/),
+      })
+      .parse(req.body);
+
+    const { rows } = await pool.query<{ pin_hash: string }>(
+      "select pin_hash from users where id = $1",
+      [req.claims.sub],
+    );
+    const akun = rows[0];
+    if (!akun || !verifyPin(body.currentPin, akun.pin_hash)) {
+      throw new AppError("INVALID_CREDENTIALS", "PIN lama salah.", 401);
+    }
+    if (body.currentPin === body.newPin) {
+      throw new AppError("PIN_UNCHANGED", "PIN baru harus berbeda dari PIN lama.", 400);
+    }
+    await pool.query("update users set pin_hash = $2 where id = $1", [
+      req.claims.sub,
+      hashPin(body.newPin),
+    ]);
+    await audit(pool, {
+      villageId: req.claims.vid ?? null,
+      actorId: req.claims.sub,
+      actorRole: req.claims.role,
+      aksi: "auth.pin_change",
+      entitas: "users",
+      entitasId: req.claims.sub,
+      ip: req.ip ?? null,
+    });
+    return { ok: true };
+  });
+
   /** Tukar refresh token (rotating, single-use, umur 30 hari). */
   app.post("/auth/refresh", async (req) => {
     const body = z.object({ refreshToken: z.string().min(16) }).parse(req.body);

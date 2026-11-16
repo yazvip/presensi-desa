@@ -8,6 +8,8 @@ const Schema = z.object({
   JWT_SECRET: z.string().min(32, "JWT_SECRET minimal 32 karakter"),
   ACCESS_TTL_SEC: z.coerce.number().default(900),
   REFRESH_TTL_DAYS: z.coerce.number().default(30),
+  // Umur token panel admin web (detik). Panel tidak memakai refresh token.
+  WEB_TTL_SEC: z.coerce.number().default(28800),
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
 });
 
