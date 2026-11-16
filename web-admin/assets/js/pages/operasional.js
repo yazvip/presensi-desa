@@ -31,7 +31,7 @@ window.Pages.staff = async function (host) {
       ],
     });
 
-    box.addEventListener("click", async (ev) => {
+    box.onclick = async (ev) => {
       const btn = ev.target.closest("button.pd-code");
       if (!btn) return;
       btn.disabled = true;
@@ -41,7 +41,7 @@ window.Pages.staff = async function (host) {
           "Berikan kepada petugas. Berlaku " + (res.expiresInDays || 7) + " hari, sekali pakai.");
       } catch (err) { pd.toast(err.message, "err"); }
       finally { btn.disabled = false; }
-    });
+    };
   }
 
   function addStaff() {
@@ -119,11 +119,11 @@ window.Pages.devices = async function (host) {
       ],
     });
 
-    box.addEventListener("click", async (ev) => {
+    box.onclick = (ev) => {
       const btn = ev.target.closest("button.pd-revoke");
       if (!btn) return;
       revokeDevice(btn.dataset.id, btn.dataset.nama, () => load(status));
-    });
+    };
   }
 
   document.getElementById("filter-device").addEventListener("click", (ev) => {
@@ -191,7 +191,7 @@ window.Pages.lokasi = async function (host) {
       ],
     });
 
-    box.addEventListener("click", async (ev) => {
+    box.onclick = async (ev) => {
       const qr = ev.target.closest("button.pd-qr");
       const rot = ev.target.closest("button.pd-rotate");
       if (qr) return showQr(qr.dataset.id, qr.dataset.nama, () => load());
@@ -204,7 +204,7 @@ window.Pages.lokasi = async function (host) {
           showQr(rot.dataset.id, rot.dataset.nama, () => load());
         } catch (err) { pd.toast(err.message, "err"); }
       }
-    });
+    };
   }
 
   function addLocation() {
@@ -274,7 +274,7 @@ window.Pages.lokasi = async function (host) {
         '<div class="mt-3"><button class="btn btn-sm btn-primary mr-2" id="btn-print"><i class="fas fa-print mr-1"></i>Cetak</button>' +
         '<button class="btn btn-sm btn-outline-secondary" id="btn-tandai">Tandai sudah dicetak</button></div>';
       if (window.QRCode) {
-        await QRCode.toCanvas(document.getElementById("qr-canvas").getContext ? document.getElementById("qr-canvas") : null, data.qrPayload, { width: 260, margin: 1 });
+        await QRCode.toCanvas(m.node.querySelector("#qr-canvas"), data.qrPayload, { width: 260, margin: 1 });
       } else {
         area.insertAdjacentHTML("beforeend", '<div class="alert alert-warning small mt-2">Pustaka QR gagal dimuat. Muatan: <code>' + pd.esc(data.qrPayload) + "</code></div>");
       }

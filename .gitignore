@@ -21,6 +21,9 @@ out/
 probe/
 proof/
 
+# Catatan kerja sementara
+tmp/
+
 # OS
 .DS_Store
 Thumbs.db

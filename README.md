@@ -9,10 +9,20 @@ Terdiri dari dua bagian:
 | Bagian | Isi |
 | --- | --- |
 | `backend/` | API Fastify + PostgreSQL — otorisasi, geofence, keputusan absensi, rekap |
+| `web-admin/` | Panel pengelola & superadmin (AdminLTE 3, berkas statis) |
 | `android/` | Aplikasi petugas (Kotlin + Jetpack Compose) |
+| `deploy/` | Konfigurasi nginx, systemd, skrip deploy, smoke test |
 | `docker-compose.yml` | Stack VPS: postgres 16 + api |
 | `docs/PLAN-ABSENSI-DESA.md` | Rencana lengkap: alur, model data, design system, roadmap |
 | `.github/workflows/build.yml` | CI: tes backend + build APK debug |
+
+## Alamat produksi
+
+| Layanan | Alamat |
+| --- | --- |
+| API | `https://absen.talangarah.web.id` (`/health` untuk cek) |
+| Panel admin | `https://absen.talangarah.web.id/admin/` |
+| APK | artifact CI `presensi-desa-debug` — alamat API sudah tertanam di build |
 
 ## Cara kerja
 
@@ -36,6 +46,29 @@ mengirim sampel GPS; angka jarak dari HP tidak dipercaya.
 - Jam kerja **Senin–Jumat 07.30–15.00 WIB**, toleransi terlambat 10 menit, istirahat 60 menit.
 - Batas perangkat: superadmin 5, pengelola desa 3, staff/kades/bendahara 1.
 - Access token 15 menit, refresh token 30 hari dengan rotasi.
+- Sesi panel web 8 jam, tanpa keterikatan perangkat (channel `web` di klaim JWT).
+
+## Panel admin
+
+Berkas statis di `web-admin/`, disajikan nginx dari `/var/www/presensi-desa/admin` pada
+`/admin/`. Semua data diambil dari API yang sama; tidak ada backend terpisah.
+
+- Masuk dengan NIPD + PIN. Hanya peran **superadmin** dan **pengelola desa**; delapan
+  kegagalan berturut-turut menahan percobaan berikutnya selama 15 menit.
+- Superadmin: desa, penunjukan pengelola (kode aktivasi 7 hari), semua perangkat lintas desa,
+  audit log.
+- Pengelola: petugas + kode aktivasi, perangkat terikat + cabut, titik kantor (koordinat,
+  radius, cetak QR, ganti QR), jam kerja, rekap (ekspor CSV/cetak), izin & cuti, anomali,
+  integritas rantai hash, ganti PIN.
+
+Memasang ulang panel di VPS:
+
+```bash
+tar czf /tmp/presensi-backend.tar.gz --exclude=node_modules --exclude=.git backend
+tar czf /tmp/presensi-webadmin.tar.gz web-admin
+scp /tmp/presensi-*.tar.gz vps:/tmp/
+ssh vps 'bash -s' < deploy/deploy-panel.sh
+```
 
 ## Menjalankan backend
 
@@ -68,8 +101,8 @@ Repo ini tidak menyimpan hasil build. APK dibuat oleh GitHub Actions:
 2. Buka tab **Actions** → **Build** → job **Android — APK debug**.
 3. Unduh artifact `presensi-desa-debug`.
 
-Alamat API diambil dari secret `API_BASE_URL` (mis. `https://presensi.desa-anda.go.id/`).
-Bila secret belum diisi, build memakai placeholder `https://presensi.example.desa/`.
+Alamat API bawaan adalah `https://absen.talangarah.web.id/`, jadi build tetap benar
+tanpa menyetel apa pun. Secret `API_BASE_URL` hanya perlu diisi bila alamatnya berubah.
 
 Build lokal (butuh JDK 17 + Android SDK 35):
 
@@ -87,8 +120,10 @@ gradle assembleDebug -PAPI_BASE_URL="http://192.168.1.10:8080/"
 - `GET/POST /admin/staff`, `/admin/activation-code`, `/admin/devices`
 - `GET/POST /admin/locations`, `/admin/schedule`, `/admin/rekap`, `/admin/anomalies`
 - `POST /admin/locations/:id/rotate-qr` — menggugurkan lembar QR lama
-- `GET/POST /super/villages`, `/super/devices/:id/revoke`, `/super/audit`
+- `GET/POST /super/villages`, `/super/devices`, `/super/devices/:id/revoke`, `/super/audit`
 - `GET /admin/integrity` — verifikasi rantai hash absensi
+- `GET /admin/locations/:id/qr` — muatan QR siap cetak (rahasia hanya lewat sini)
+- `POST /auth/web-login`, `GET /auth/me`, `POST /auth/web-change-pin` — sesi panel web
 
 ## Keamanan dan batasannya
 
@@ -106,5 +141,6 @@ Yang **belum** ditangani dan perlu diketahui:
 
 ## Status
 
-Backend: tes 43/43 lulus, typecheck bersih. Android: kode lengkap, belum pernah dikompilasi di
-mesin pengembang (tidak ada JDK/SDK di lingkungan penulisan) — build pertama terjadi di CI.
+Backend: 46/46 tes lulus, typecheck bersih, sudah berjalan di VPS (systemd + nginx + PostgreSQL
+16 native, sertifikat Let's Encrypt aktif). Panel web: terpasang dan teruji di server. Android:
+kode lengkap dan sedang diverifikasi kompilasinya; build resmi tetap lewat CI.

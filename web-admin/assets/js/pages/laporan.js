@@ -117,12 +117,12 @@ window.Pages.cuti = async function (host) {
       ],
     });
 
-    box.addEventListener("click", (ev) => {
+    box.onclick = (ev) => {
       const ok = ev.target.closest("button.pd-setuju");
       const no = ev.target.closest("button.pd-tolak");
       if (!ok && !no) return;
       decide((ok || no).dataset.id, (ok || no).dataset.nama, !!ok);
-    });
+    };
   }
 
   function decide(id, nama, approve) {
@@ -207,7 +207,7 @@ window.Pages.integritas = async function (host) {
   host.innerHTML = '<div class="card"><div class="card-body" id="int-box"></div></div>';
   const box = document.getElementById("int-box");
   pd.loading(box);
-  const data = await api.get("/admin/integritas");
+  const data = await api.get("/admin/integrity");
   const ok = data.valid;
   box.innerHTML =
     '<div class="text-center py-3">' +

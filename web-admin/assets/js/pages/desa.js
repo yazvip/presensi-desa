@@ -22,7 +22,7 @@ window.Pages.desa = async function (host) {
       order: [[0, "asc"]],
       columns: [
         { label: "Desa", render: (r) => "<strong>" + pd.esc(r.nama) + '</strong><div class="text-muted small">' + pd.esc(r.kode_desa) + "</div>" },
-        { label: "Kecamatan", render: (r) => pd.esc(r.kecamatan) + '<div class="text-muted small">' + pd.esc(r.kabupaten) + ", " + pd.esc(r.provinsi) + "</div>" },
+        { label: "Kecamatan", render: (r) => pd.esc(r.kecamatan) + '<div class="text-muted small">' + pd.esc(r.kabupaten) + " · " + pd.esc(r.timezone) + "</div>" },
         { label: "Pengelola", render: (r) => r.pengelola ? pd.esc(r.pengelola) : '<span class="badge badge-soft-gold">Belum ada</span>' },
         { label: "Petugas", key: "users", className: "text-right" },
         { label: "Lokasi", key: "locations", className: "text-right" },
@@ -35,11 +35,11 @@ window.Pages.desa = async function (host) {
       ],
     });
 
-    box.addEventListener("click", (ev) => {
+    box.onclick = (ev) => {
       const btn = ev.target.closest("button[data-id]");
       if (!btn) return;
       assignPengelola(btn.dataset.id, btn.dataset.nama, load);
-    });
+    };
   }
 
   await load();
