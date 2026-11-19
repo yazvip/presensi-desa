@@ -74,11 +74,11 @@ class PresensiRepository(
         }
     }
 
-    suspend fun preview(qr: String, samples: List<GpsSample>): PreviewResponse {
+    suspend fun preview(qr: String, samples: List<GpsSample>): PreviewResponse = withRefresh {
         if (samples.isEmpty()) {
             throw ApiException("NO_LOCATION", "Lokasi GPS belum terbaca. Cari area terbuka lalu coba lagi.", 0)
         }
-        return api.previewAttendance(PreviewRequest(qr, samples))
+        api.previewAttendance(PreviewRequest(qr, samples))
     }
 
     suspend fun submit(qr: String, samples: List<GpsSample>): AttendanceDto = withRefresh {
@@ -110,7 +110,7 @@ class PresensiRepository(
             block()
         } catch (e: ApiException) {
             if (e.status != 401) throw e
-            val refresh = session.cached()?.refreshToken ?: throw e
+            val refresh = (session.cached()?.refreshToken ?: session.current()?.refreshToken) ?: throw e
             val rotated = try {
                 api.refresh(RefreshRequest(refresh))
             } catch (err: ApiException) {

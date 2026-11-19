@@ -1,6 +1,5 @@
 package id.desa.presensi.ui.screen
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,15 +18,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import id.desa.presensi.data.AttendanceDto
 import id.desa.presensi.ui.UiState
 import id.desa.presensi.ui.statusLabel
 import id.desa.presensi.ui.theme.HeroEmeraldCard
@@ -42,10 +43,14 @@ import id.desa.presensi.ui.theme.Ivory
 import id.desa.presensi.ui.theme.LedgerCard
 import id.desa.presensi.ui.theme.LocalAccents
 import id.desa.presensi.ui.theme.PillTone
-import id.desa.presensi.ui.theme.SecondaryOutlineButton
 import id.desa.presensi.ui.theme.SectionLabel
 import id.desa.presensi.ui.theme.StatusPill
 import id.desa.presensi.ui.timeLabel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 private enum class HistoryFilter(val label: String) {
     ALL("Semua"),
@@ -55,15 +60,19 @@ private enum class HistoryFilter(val label: String) {
     LATE("Terlambat"),
 }
 
+private val monthFormatter = DateTimeFormatter.ofPattern("MMMM yyyy", Locale.forLanguageTag("id-ID"))
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryScreen(
     state: UiState,
     onRefresh: () -> Unit,
-    onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val accents = LocalAccents.current
+    val scope = rememberCoroutineScope()
     var filter by remember { mutableStateOf(HistoryFilter.ALL) }
+    var refreshing by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { onRefresh() }
 
@@ -81,37 +90,20 @@ fun HistoryScreen(
         }
     }
 
+    val grouped = remember(filtered) {
+        filtered.groupBy { monthLabel(it.workDate) }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(horizontal = 20.dp, vertical = 20.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column {
-                SectionLabel("Catatan Kehadiran")
-                Text("Riwayat Saya", style = MaterialTheme.typography.headlineMedium)
-            }
-            OutlinedButton(
-                onClick = onBack,
-                shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, accents.hairline),
-                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    contentColor = accents.muted,
-                ),
-            ) {
-                Text("Kembali", style = MaterialTheme.typography.labelLarge)
-            }
-        }
+        SectionLabel("Catatan Kehadiran")
+        Text("Riwayat Saya", style = MaterialTheme.typography.headlineMedium)
 
         Spacer(Modifier.height(16.dp))
 
-        // Ringkasan metrik kehadiran + persentase ketepatan waktu
         HeroEmeraldCard {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -125,7 +117,6 @@ fun HistoryScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        // Chip filter riwayat
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
@@ -157,88 +148,113 @@ fun HistoryScreen(
 
         Spacer(Modifier.height(14.dp))
 
-        if (filtered.isEmpty()) {
-            LedgerCard(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = if (state.history.isEmpty()) {
-                        "Belum ada riwayat kehadiran. Catatan akan muncul setelah absen pertama Anda."
-                    } else {
-                        "Tidak ada catatan untuk filter \"${filter.label}\"."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = accents.muted,
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                items(filtered) { row ->
-                    LedgerCard(padding = PaddingValues(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(
-                                            if (row.type == "masuk") {
-                                                accents.success.copy(alpha = 0.12f)
-                                            } else {
-                                                accents.gold.copy(alpha = 0.16f)
-                                            },
-                                        ),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Text(
-                                        text = if (row.type == "masuk") "IN" else "OUT",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = if (row.type == "masuk") accents.success else accents.goldDeep,
-                                        fontWeight = FontWeight.Bold,
-                                    )
-                                }
-                                Column {
-                                    Text(row.workDate, style = MaterialTheme.typography.titleMedium)
-                                    Text(
-                                        text = "${if (row.type == "masuk") "Masuk" else "Pulang"} ${row.timeLabel()} · ${row.officeName}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = accents.muted,
-                                    )
-                                    Text(
-                                        text = "Jarak ${row.distanceM} m · akurasi ${row.accM} m",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = accents.muted,
-                                    )
-                                }
-                            }
-                            StatusPill(
-                                text = row.statusLabel(),
-                                tone = when (row.status) {
-                                    "tepat_waktu" -> PillTone.Success
-                                    "terlambat", "pulang_cepat" -> PillTone.Warning
-                                    else -> PillTone.Neutral
+        PullToRefreshBox(
+            isRefreshing = refreshing,
+            onRefresh = {
+                refreshing = true
+                onRefresh()
+                scope.launch {
+                    delay(700)
+                    refreshing = false
+                }
+            },
+            modifier = Modifier.weight(1f),
+        ) {
+            if (filtered.isEmpty()) {
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    item {
+                        LedgerCard {
+                            Text(
+                                text = if (state.history.isEmpty()) {
+                                    "Belum ada riwayat kehadiran. Tarik ke bawah untuk memuat ulang."
+                                } else {
+                                    "Tidak ada catatan untuk filter \"${filter.label}\"."
                                 },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = accents.muted,
                             )
+                        }
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    grouped.forEach { (month, rows) ->
+                        item(key = "hdr-$month") {
+                            SectionLabel(
+                                text = month,
+                                modifier = Modifier.padding(top = 6.dp, bottom = 2.dp),
+                            )
+                        }
+                        items(rows, key = { it.id }) { row ->
+                            HistoryRowCard(row = row)
                         }
                     }
                 }
             }
         }
+    }
+}
 
-        Spacer(Modifier.height(14.dp))
-        SecondaryOutlineButton(
-            text = "Muat Ulang Riwayat",
-            onClick = onRefresh,
-        )
+@Composable
+private fun HistoryRowCard(row: AttendanceDto) {
+    val accents = LocalAccents.current
+    LedgerCard(padding = PaddingValues(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.weight(1f),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (row.type == "masuk") {
+                                accents.success.copy(alpha = 0.12f)
+                            } else {
+                                accents.gold.copy(alpha = 0.16f)
+                            },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = if (row.type == "masuk") "IN" else "OUT",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (row.type == "masuk") accents.success else accents.goldDeep,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
+                Column {
+                    Text(row.workDate, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = "${if (row.type == "masuk") "Masuk" else "Pulang"} ${row.timeLabel()} · ${row.officeName}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = accents.muted,
+                    )
+                    Text(
+                        text = "Jarak ${row.distanceM} m · akurasi ${row.accM} m",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = accents.muted,
+                    )
+                }
+            }
+            StatusPill(
+                text = row.statusLabel(),
+                tone = when (row.status) {
+                    "tepat_waktu" -> PillTone.Success
+                    "terlambat", "pulang_cepat" -> PillTone.Warning
+                    else -> PillTone.Neutral
+                },
+            )
+        }
     }
 }
 
@@ -261,4 +277,9 @@ private fun MetricItem(
             color = color,
         )
     }
+}
+
+private fun monthLabel(workDate: String): String {
+    val d = runCatching { LocalDate.parse(workDate.take(10)) }.getOrNull() ?: return "Lainnya"
+    return d.format(monthFormatter)
 }

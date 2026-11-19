@@ -262,6 +262,7 @@ fun LuxuryTextField(
     isError: Boolean = false,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     val accents = LocalAccents.current
     OutlinedTextField(
@@ -274,6 +275,7 @@ fun LuxuryTextField(
         isError = isError,
         visualTransformation = visualTransformation,
         keyboardOptions = keyboardOptions,
+        trailingIcon = trailingIcon,
         shape = RoundedCornerShape(16.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = accents.gold,

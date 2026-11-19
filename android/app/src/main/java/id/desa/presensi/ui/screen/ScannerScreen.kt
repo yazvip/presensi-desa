@@ -1,6 +1,7 @@
 package id.desa.presensi.ui.screen
 
 import android.Manifest
+import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.LinearEasing
@@ -23,9 +24,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -43,7 +48,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.core.content.ContextCompat
 import androidx.compose.ui.unit.dp
 import id.desa.presensi.data.ServiceLocator
 import id.desa.presensi.qr.QrScannerView
@@ -69,13 +76,20 @@ fun ScannerScreen(
     state: UiState,
     onQrDetected: (String) -> Unit,
     onConfirm: () -> Unit,
+    onRetryScan: () -> Unit,
     onDone: () -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val accents = LocalAccents.current
+    val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    var cameraGranted by remember { mutableStateOf(false) }
+    var cameraGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED,
+        )
+    }
     var locationGranted by remember {
         mutableStateOf(ServiceLocator.location.hasPermission())
     }
@@ -93,7 +107,7 @@ fun ScannerScreen(
     }
 
     LaunchedEffect(Unit) {
-        cameraLauncher.launch(Manifest.permission.CAMERA)
+        if (!cameraGranted) cameraLauncher.launch(Manifest.permission.CAMERA)
         if (!locationGranted) {
             locationLauncher.launch(
                 arrayOf(
@@ -318,21 +332,59 @@ fun ScannerScreen(
                             }
                         }
 
-                        // Pill instruksi di bagian bawah viewfinder
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(16.dp)
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(Color.Black.copy(alpha = 0.62f))
-                                .border(1.dp, accents.gold.copy(alpha = 0.45f), RoundedCornerShape(18.dp))
-                                .padding(horizontal = 16.dp, vertical = 10.dp),
-                        ) {
-                            Text(
-                                text = "Arahkan kamera ke QR Code Kantor Desa",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Ivory,
-                            )
+                        // Overlay tahapan saat QR terbaca dan sedang mengunci sinyal GPS
+                        if (state.busy) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color.Black.copy(alpha = 0.72f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .padding(24.dp)
+                                        .clip(RoundedCornerShape(22.dp))
+                                        .background(MaterialTheme.colorScheme.surface)
+                                        .border(1.dp, accents.gold.copy(alpha = 0.5f), RoundedCornerShape(22.dp))
+                                        .padding(horizontal = 24.dp, vertical = 20.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(30.dp),
+                                        strokeWidth = 2.5.dp,
+                                        color = accents.gold,
+                                    )
+                                    Spacer(Modifier.height(14.dp))
+                                    Text(
+                                        text = "1. QR Kantor Terbaca",
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = accents.success,
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = "2. Mengunci koordinat GPS terbaik...",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = accents.muted,
+                                    )
+                                }
+                            }
+                        } else {
+                            // Pill instruksi di bagian bawah viewfinder
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(16.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(Color.Black.copy(alpha = 0.62f))
+                                    .border(1.dp, accents.gold.copy(alpha = 0.45f), RoundedCornerShape(18.dp))
+                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                            ) {
+                                Text(
+                                    text = "Arahkan kamera ke QR Code Kantor Desa",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Ivory,
+                                )
+                            }
                         }
                     }
                 } else {
@@ -399,9 +451,25 @@ fun ScannerScreen(
                                 color = accents.goldLight,
                             )
                             Text(
-                                text = "jarak Anda dari titik presensi kantor",
+                                text = if (preview.inRange) {
+                                    "jarak Anda dari titik presensi kantor (di dalam batas ${preview.radiusM} m)"
+                                } else {
+                                    "Geser ${(preview.distanceM - preview.radiusM).coerceAtLeast(1)} m lebih dekat ke titik kantor (batas ${preview.radiusM} m)"
+                                },
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Ivory.copy(alpha = 0.78f),
+                                color = Ivory.copy(alpha = 0.84f),
+                            )
+                            Spacer(Modifier.height(14.dp))
+                            val ratio = if (preview.radiusM > 0) (preview.distanceM.toFloat() / preview.radiusM.toFloat()).coerceIn(0f, 1f) else 1f
+                            LinearProgressIndicator(
+                                progress = { ratio },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(6.dp)
+                                    .clip(RoundedCornerShape(3.dp)),
+                                color = if (preview.inRange) accents.goldLight else MaterialTheme.colorScheme.error,
+                                trackColor = Ivory.copy(alpha = 0.16f),
+                                strokeCap = StrokeCap.Round,
                             )
                             Spacer(Modifier.height(16.dp))
                             GoldRule(width = 56)
@@ -440,7 +508,7 @@ fun ScannerScreen(
                 Spacer(Modifier.height(10.dp))
                 SecondaryOutlineButton(
                     text = "Pindai Ulang",
-                    onClick = onCancel,
+                    onClick = onRetryScan,
                     enabled = !state.busy,
                 )
             }

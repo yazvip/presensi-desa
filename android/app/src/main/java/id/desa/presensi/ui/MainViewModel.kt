@@ -76,6 +76,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = _state.value.copy(scanning = false, preview = null, pendingQr = null)
     }
 
+    fun setThemeMode(mode: ThemeMode) {
+        _state.value = _state.value.copy(themeMode = mode)
+        viewModelScope.launch { session.setThemeMode(mode) }
+    }
+
     fun cycleTheme() {
         val next = when (_state.value.themeMode) {
             ThemeMode.SYSTEM -> ThemeMode.LIGHT

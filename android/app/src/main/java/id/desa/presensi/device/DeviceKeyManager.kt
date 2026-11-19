@@ -1,5 +1,6 @@
 package id.desa.presensi.device
 
+import android.os.Build
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
@@ -26,7 +27,10 @@ class DeviceKeyManager(private val alias: String = "presensi_device_key_v1") {
         loadPublicKey()?.let { return it }
         // StrongBox tidak ada di semua perangkat (dan bisa error di OEM tertentu);
         // bila gagal, kunci TEE biasa tetap sah dipakai.
-        return generate(useStrongBox = true) ?: generate(useStrongBox = false)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            generate(useStrongBox = true)?.let { return it }
+        }
+        return generate(useStrongBox = false)
     }
 
     private fun generate(useStrongBox: Boolean): PublicKey? {
@@ -35,7 +39,7 @@ class DeviceKeyManager(private val alias: String = "presensi_device_key_v1") {
             val builder = KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_SIGN)
                 .setAlgorithmParameterSpec(ECGenParameterSpec("secp256r1"))
                 .setDigests(KeyProperties.DIGEST_SHA256)
-            if (useStrongBox) builder.setIsStrongBoxBacked(true)
+            if (useStrongBox && Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) builder.setIsStrongBoxBacked(true)
             gen.initialize(builder.build())
             val pair = gen.generateKeyPair()
             strongbox = useStrongBox

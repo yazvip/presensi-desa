@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,7 +30,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import id.desa.presensi.ui.UiState
 import id.desa.presensi.ui.theme.BrandHeader
@@ -51,6 +54,7 @@ fun LoginScreen(
 ) {
     var nipd by remember { mutableStateOf("") }
     var pin by remember { mutableStateOf("") }
+    var showPin by remember { mutableStateOf(false) }
     val accents = LocalAccents.current
 
     Column(
@@ -97,7 +101,18 @@ fun LoginScreen(
                         label = "PIN 6 Digit",
                         placeholder = "••••••",
                         enabled = !state.busy,
-                        visualTransformation = PasswordVisualTransformation(),
+                        visualTransformation = if (showPin) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            Text(
+                                text = if (showPin) "Tutup" else "Lihat",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = accents.goldDeep,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .clickable { showPin = !showPin }
+                                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                            )
+                        },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.NumberPassword,
                             imeAction = ImeAction.Done,
