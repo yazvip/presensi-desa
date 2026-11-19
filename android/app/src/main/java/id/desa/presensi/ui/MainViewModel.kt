@@ -8,6 +8,8 @@ import id.desa.presensi.data.AttendanceDto
 import id.desa.presensi.data.PreviewResponse
 import id.desa.presensi.data.ServiceLocator
 import id.desa.presensi.data.Session
+import id.desa.presensi.data.ThemeMode
+import id.desa.presensi.reminder.AttendanceReminder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +32,8 @@ data class UiState(
     val lastResult: AttendanceDto? = null,
     /** QR yang sudah terbaca, menunggu konfirmasi petugas. */
     val pendingQr: String? = null,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val reminderEnabled: Boolean = false,
 ) {
     val hasCheckedIn: Boolean get() = today.any { it.type == "masuk" }
     val hasCheckedOut: Boolean get() = today.any { it.type == "pulang" }
@@ -48,7 +52,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     init {
         viewModelScope.launch {
             val current = runCatching { session.current() }.getOrNull()
-            _state.value = _state.value.copy(booting = false, session = current)
+            val theme = runCatching { session.themeMode() }.getOrDefault(ThemeMode.SYSTEM)
+            val reminder = runCatching { session.reminderEnabled() }.getOrDefault(false)
+            _state.value = _state.value.copy(
+                booting = false,
+                session = current,
+                themeMode = theme,
+                reminderEnabled = reminder,
+            )
             if (current != null) refreshHistory()
         }
     }
@@ -58,11 +69,32 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun startScanning() {
-        _state.value = _state.value.copy(scanning = true, preview = null, error = null)
+        _state.value = _state.value.copy(scanning = true, preview = null, error = null, lastResult = null)
     }
 
     fun stopScanning() {
-        _state.value = _state.value.copy(scanning = false)
+        _state.value = _state.value.copy(scanning = false, preview = null, pendingQr = null)
+    }
+
+    fun cycleTheme() {
+        val next = when (_state.value.themeMode) {
+            ThemeMode.SYSTEM -> ThemeMode.LIGHT
+            ThemeMode.LIGHT -> ThemeMode.DARK
+            ThemeMode.DARK -> ThemeMode.SYSTEM
+        }
+        _state.value = _state.value.copy(themeMode = next)
+        viewModelScope.launch { session.setThemeMode(next) }
+    }
+
+    fun setReminderEnabled(enabled: Boolean) {
+        _state.value = _state.value.copy(reminderEnabled = enabled)
+        val app = getApplication<Application>()
+        if (enabled) {
+            AttendanceReminder.scheduleDaily(app)
+        } else {
+            AttendanceReminder.cancel(app)
+        }
+        viewModelScope.launch { session.setReminderEnabled(enabled) }
     }
 
     fun login(nipd: String, pin: String, onDone: () -> Unit) = launchBusy {
@@ -138,7 +170,16 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun signOut() {
         viewModelScope.launch {
             runCatching { repo.logout() }
-            _state.value = UiState(booting = false)
+            _state.value = _state.value.copy(
+                session = null,
+                history = emptyList(),
+                today = emptyList(),
+                preview = null,
+                lastResult = null,
+                pendingQr = null,
+                message = null,
+                error = null,
+            )
         }
     }
 

@@ -46,25 +46,41 @@ private val DarkScheme = darkColorScheme(
     error = Color(0xFFF2B8B5),
 )
 
-/** Warna aksen yang tidak ada di ColorScheme Material. */
+/** Warna aksen khusus untuk gradien, garis logam emas, dan kartu premium. */
 data class AccentColors(
-    val gold: androidx.compose.ui.graphics.Color,
-    val emerald: androidx.compose.ui.graphics.Color,
-    val muted: androidx.compose.ui.graphics.Color,
-    val hairline: androidx.compose.ui.graphics.Color,
-    val success: androidx.compose.ui.graphics.Color,
+    val gold: Color,
+    val goldLight: Color,
+    val goldDeep: Color,
+    val emerald: Color,
+    val emeraldDeep: Color,
+    val emeraldSoft: Color,
+    val surfaceElevated: Color,
+    val muted: Color,
+    val hairline: Color,
+    val success: Color,
 )
 
 val LocalAccents = staticCompositionLocalOf {
-    AccentColors(gold = Gold, emerald = Emerald, muted = Muted, hairline = Hairline, success = Success)
+    AccentColors(
+        gold = Gold,
+        goldLight = GoldLight,
+        goldDeep = GoldDeep,
+        emerald = Emerald,
+        emeraldDeep = EmeraldDeep,
+        emeraldSoft = EmeraldSoft,
+        surfaceElevated = IvoryElevated,
+        muted = Muted,
+        hairline = Hairline,
+        success = Success,
+    )
 }
 
 private val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(10.dp),
     small = RoundedCornerShape(14.dp),
     medium = RoundedCornerShape(20.dp),
-    large = RoundedCornerShape(28.dp),
-    extraLarge = RoundedCornerShape(34.dp),
+    large = RoundedCornerShape(26.dp),
+    extraLarge = RoundedCornerShape(32.dp),
 )
 
 @Composable
@@ -73,9 +89,31 @@ fun PresensiTheme(
     content: @Composable () -> Unit,
 ) {
     val accents = if (darkTheme) {
-        AccentColors(gold = GoldDark, emerald = EmeraldLight, muted = MutedDark, hairline = HairlineDark, success = EmeraldLight)
+        AccentColors(
+            gold = GoldDark,
+            goldLight = GoldDarkLight,
+            goldDeep = GoldDarkDeep,
+            emerald = EmeraldLight,
+            emeraldDeep = EmeraldDarkDeep,
+            emeraldSoft = EmeraldSoft,
+            surfaceElevated = MidnightElevated,
+            muted = MutedDark,
+            hairline = HairlineDark,
+            success = EmeraldLight,
+        )
     } else {
-        AccentColors(gold = Gold, emerald = Emerald, muted = Muted, hairline = Hairline, success = Success)
+        AccentColors(
+            gold = Gold,
+            goldLight = GoldLight,
+            goldDeep = GoldDeep,
+            emerald = Emerald,
+            emeraldDeep = EmeraldDeep,
+            emeraldSoft = EmeraldSoft,
+            surfaceElevated = IvoryElevated,
+            muted = Muted,
+            hairline = Hairline,
+            success = Success,
+        )
     }
 
     CompositionLocalProvider(LocalAccents provides accents) {

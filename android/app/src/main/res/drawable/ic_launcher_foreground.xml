@@ -4,10 +4,22 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Lingkaran luar emas tipis -->
     <path
-        android:fillColor="#C9A227"
-        android:pathData="M54,26 L70,34 L70,52 C70,62 63,68 54,72 C45,68 38,62 38,52 L38,34 Z" />
+        android:fillColor="#00000000"
+        android:strokeColor="#E5C86B"
+        android:strokeWidth="1.6"
+        android:pathData="M54,20 A34,34 0 1,1 53.99,20 Z" />
+    <!-- Perisai emas utama -->
     <path
-        android:fillColor="#0F3D2E"
-        android:pathData="M47,50 L52,56 L62,44 L65,47 L52,62 L44,53 Z" />
+        android:fillColor="#C8A035"
+        android:pathData="M54,26 L72,34 L72,53 C72,64 64,71 54,75 C44,71 36,64 36,53 L36,34 Z" />
+    <!-- Lapisan dalam perisai emerald gelap -->
+    <path
+        android:fillColor="#07291E"
+        android:pathData="M54,29.5 L68.5,36 L68.5,52.5 C68.5,61.5 62,67.5 54,71 C46,67.5 39.5,61.5 39.5,52.5 L39.5,36 Z" />
+    <!-- Tanda centang emas -->
+    <path
+        android:fillColor="#E5C86B"
+        android:pathData="M46.5,51.5 L51.5,57 L62.5,44.5 L65.5,47.5 L51.5,63 L43.5,54.5 Z" />
 </vector>

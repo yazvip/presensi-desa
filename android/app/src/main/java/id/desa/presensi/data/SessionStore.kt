@@ -1,13 +1,17 @@
 package id.desa.presensi.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
 
 private val Context.sessionStore by preferencesDataStore(name = "presensi_session")
+
+enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 @Serializable
 data class Session(
@@ -35,6 +39,8 @@ class SessionStore(private val context: Context) {
     private object Keys {
         val data = stringPreferencesKey("session_json")
         val deviceId = stringPreferencesKey("device_id")
+        val themeMode = stringPreferencesKey("theme_mode")
+        val reminderEnabled = booleanPreferencesKey("reminder_enabled")
     }
 
     suspend fun current(): Session? {
@@ -55,7 +61,7 @@ class SessionStore(private val context: Context) {
     suspend fun save(session: Session) {
         cache = session
         context.sessionStore.edit { prefs ->
-            prefs[Keys.data] = Json.encodeToString(session)
+            prefs[Keys.data] = Json.encodeToString(Session.serializer(), session)
             session.deviceId?.let { prefs[Keys.deviceId] = it }
         }
     }
@@ -78,5 +84,21 @@ class SessionStore(private val context: Context) {
             prefs.remove(Keys.data)
             prefs.remove(Keys.deviceId)
         }
+    }
+
+    suspend fun themeMode(): ThemeMode {
+        val raw = context.sessionStore.data.first()[Keys.themeMode] ?: return ThemeMode.SYSTEM
+        return runCatching { ThemeMode.valueOf(raw) }.getOrDefault(ThemeMode.SYSTEM)
+    }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.sessionStore.edit { prefs -> prefs[Keys.themeMode] = mode.name }
+    }
+
+    suspend fun reminderEnabled(): Boolean =
+        context.sessionStore.data.first()[Keys.reminderEnabled] ?: false
+
+    suspend fun setReminderEnabled(enabled: Boolean) {
+        context.sessionStore.edit { prefs -> prefs[Keys.reminderEnabled] = enabled }
     }
 }
