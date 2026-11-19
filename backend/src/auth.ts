@@ -6,6 +6,8 @@ declare module "fastify" {
   interface FastifyRequest {
     claims?: JwtClaims;
     deviceActive?: boolean;
+    deviceCanManage?: boolean;
+    deviceCanAttend?: boolean;
   }
   interface FastifyInstance {
     authenticate: (req: FastifyRequest, reply: FastifyReply) => Promise<void>;
@@ -43,7 +45,8 @@ export async function authenticate(req: FastifyRequest, reply: FastifyReply): Pr
   }
 
   const { rows } = await pool.query(
-    `select d.id, d.status, u.status as user_status
+    `select d.id, d.status, d.whitelisted, d.whitelist_village_id, d.can_manage, d.can_attend,
+            u.status as user_status
        from devices d join users u on u.id = d.user_id
       where d.id = $1 and d.user_id = $2`,
     [claims.did, claims.sub],
@@ -61,14 +64,19 @@ export async function authenticate(req: FastifyRequest, reply: FastifyReply): Pr
     return;
   }
 
-  req.claims = claims;
+  req.claims = device.whitelisted && device.whitelist_village_id
+    ? { ...claims, vid: device.whitelist_village_id }
+    : claims;
   req.deviceActive = true;
+  req.deviceCanManage = Boolean(device.whitelisted && device.can_manage);
+  req.deviceCanAttend = device.whitelisted ? Boolean(device.can_attend) : true;
 }
 
 export function requireRole(...roles: string[]) {
   return async (req: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const role = req.claims?.role;
-    if (!role || !roles.includes(role)) {
+    const allowedByWhitelist = roles.includes("admin_desa") && Boolean(req.deviceCanManage);
+    if (!allowedByWhitelist && (!role || !roles.includes(role))) {
       reply.code(403).send({ code: "FORBIDDEN", message: "Anda tidak berwenang untuk aksi ini." });
     }
   };

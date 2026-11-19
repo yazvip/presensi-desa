@@ -39,6 +39,9 @@ export function parseQrPayload(payload: string): { kode: string; secret: string 
 export default async function attendanceRoutes(app: FastifyInstance): Promise<void> {
   /** Inti absensi — semua keputusan dibuat di sini, bukan di HP. */
   app.post("/attendance", { preHandler: [app.authenticate] }, async (req) => {
+    if (req.deviceCanAttend === false) {
+      throw new AppError("DEVICE_ATTEND_DISABLED", "Perangkat ini dinonaktifkan untuk absensi oleh Superadmin.", 403);
+    }
     const claims = req.claims!;
     const body = QrSchema.parse(req.body);
     const villageId = claims.vid;
@@ -290,6 +293,9 @@ export default async function attendanceRoutes(app: FastifyInstance): Promise<vo
 
   /** Pratinjau jarak sebelum kirim — dipakai layar konfirmasi. */
   app.post("/attendance/preview", { preHandler: [app.authenticate] }, async (req) => {
+    if (req.deviceCanAttend === false) {
+      throw new AppError("DEVICE_ATTEND_DISABLED", "Perangkat ini dinonaktifkan untuk absensi oleh Superadmin.", 403);
+    }
     const claims = req.claims!;
     const body = QrSchema.pick({ qr: true, samples: true }).parse(req.body);
     const parsed = parseQrPayload(body.qr);

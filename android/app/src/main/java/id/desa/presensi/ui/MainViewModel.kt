@@ -10,6 +10,8 @@ import id.desa.presensi.data.ServiceLocator
 import id.desa.presensi.data.Session
 import id.desa.presensi.data.ThemeMode
 import id.desa.presensi.reminder.AttendanceReminder
+import id.desa.presensi.update.AppUpdateInfo
+import id.desa.presensi.update.AppUpdater
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,6 +36,7 @@ data class UiState(
     val pendingQr: String? = null,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val reminderEnabled: Boolean = false,
+    val availableUpdate: AppUpdateInfo? = null,
 ) {
     val hasCheckedIn: Boolean get() = today.any { it.type == "masuk" }
     val hasCheckedOut: Boolean get() = today.any { it.type == "pulang" }
@@ -61,7 +64,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 reminderEnabled = reminder,
             )
             if (current != null) refreshHistory()
+            val update = AppUpdater.checkLatest()
+            if (update != null) {
+                _state.value = _state.value.copy(availableUpdate = update)
+            }
         }
+    }
+
+    fun dismissUpdate() {
+        _state.value = _state.value.copy(availableUpdate = null)
     }
 
     fun clearMessages() {

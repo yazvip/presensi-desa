@@ -188,10 +188,13 @@ export default async function superadminRoutes(app: FastifyInstance): Promise<vo
     const { rows } = await pool.query(
       `select d.id, d.label, d.model, d.manufacturer, d.os_version, d.status,
               d.first_bound_at, d.last_seen_at, d.revoke_reason,
+              d.whitelisted, d.whitelist_village_id, wv.nama as whitelist_village,
+              d.can_manage, d.can_attend,
               u.nama, u.nipd, u.role, v.nama as village
          from devices d
          join users u on u.id = d.user_id
          left join villages v on v.id = d.village_id
+         left join villages wv on wv.id = d.whitelist_village_id
         where ($1::uuid is null or d.village_id = $1)
           and ($2::text is null or d.status = $2)
         order by d.status, d.first_bound_at desc
@@ -199,6 +202,50 @@ export default async function superadminRoutes(app: FastifyInstance): Promise<vo
       [q.villageId ?? null, q.status ?? null],
     );
     return { devices: rows };
+  });
+
+
+  /** Whitelist perangkat khusus Superadmin: bisa bertindak sebagai Pengelola dan/atau perangkat absensi. */
+  app.post("/super/devices/:deviceId/whitelist", { preHandler: guard }, async (req) => {
+    const { deviceId } = z.object({ deviceId: z.string().uuid() }).parse(req.params);
+    const body = z
+      .object({
+        whitelisted: z.boolean(),
+        villageId: z.string().uuid().nullable().optional(),
+        canManage: z.boolean().default(false),
+        canAttend: z.boolean().default(true),
+      })
+      .parse(req.body);
+
+    const { rows } = await pool.query(
+      `update devices
+          set whitelisted = $2,
+              whitelist_village_id = case when $2 then $3::uuid else null end,
+              can_manage = case when $2 then $4 else false end,
+              can_attend = case when $2 then $5 else true end
+        where id = $1
+        returning id, user_id, village_id, whitelisted, whitelist_village_id, can_manage, can_attend`,
+      [deviceId, body.whitelisted, body.villageId ?? null, body.canManage, body.canAttend],
+    );
+    const device = rows[0];
+    if (!device) throw new AppError("NOT_FOUND", "Perangkat tidak ditemukan.", 404);
+
+    await audit(pool, {
+      villageId: device.whitelist_village_id ?? device.village_id,
+      actorId: req.claims!.sub,
+      actorRole: "superadmin",
+      aksi: "device.whitelist",
+      entitas: "devices",
+      entitasId: deviceId,
+      after: {
+        whitelisted: device.whitelisted,
+        villageId: device.whitelist_village_id,
+        canManage: device.can_manage,
+        canAttend: device.can_attend,
+      },
+      ip: req.ip ?? null,
+    });
+    return { device };
   });
 
   app.get("/super/audit", { preHandler: guard }, async (req) => {

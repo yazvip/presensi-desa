@@ -213,7 +213,7 @@ window.Pages.integritas = async function (host) {
     '<div class="text-center py-3">' +
     '<i class="fas ' + (ok ? "fa-shield-alt" : "fa-exclamation-triangle") + ' fa-3x mb-3" style="color:' + (ok ? "#1f7a55" : "#b3261e") + '"></i>' +
     "<h4>" + (ok ? "Rantai hash utuh" : "Ditemukan manipulasi data") + "</h4>" +
-    '<p class="text-muted mb-0">' + Number(data.checked) + " catatan diperiksa · " + Number((data.broken || []).length) + " tidak cocok</p>" +
+    '<p class="text-muted mb-0">' + Number(data.checked || 0) + " catatan diperiksa · " + Number((data.broken || []).length) + " tidak cocok</p>" +
     (ok ? "" : '<div class="alert alert-danger mt-3 text-left"><strong>ID yang tidak cocok:</strong><br><code>' + pd.esc((data.broken || []).join("<br>")) + "</code></div>") +
     "</div>" +
     '<p class="text-muted small mt-3 mb-0">Setiap catatan absensi menyimpan hash isi dan hash catatan sebelumnya. Perubahan langsung di database terlihat di sini sebagai rantai yang putus.</p>';

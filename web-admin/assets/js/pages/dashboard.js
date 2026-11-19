@@ -33,22 +33,24 @@ window.Pages.dashboard = async function (host) {
     api.get("/admin/leave").catch(() => ({ requests: [] })),
   ]);
 
-  const hadirToday = rekapToday.rows.length;
-  const terlambat = rekapToday.rows.filter((r) => r.status_masuk === "terlambat").length;
+  const todayRows = rekapToday.rows || [];
+  const staffRows = staff.staff || [];
+  const hadirToday = todayRows.length;
+  const terlambat = todayRows.filter((r) => r.status_masuk === "terlambat").length;
   const izinHariIni = (cuti.requests || []).filter((r) => r.status === "approved" && String(r.mulai).slice(0, 10) <= today && String(r.selesai).slice(0, 10) >= today).length;
-  const belum = Math.max(0, staff.staff.length - hadirToday - izinHariIni);
+  const belum = Math.max(0, staffRows.length - hadirToday - izinHariIni);
 
   document.getElementById("kpi-row").innerHTML = [
-    kpi("Hadir hari ini", hadirToday, "fa-user-check", "bg-emerald", staff.staff.length + " petugas terdaftar"),
+    kpi("Hadir hari ini", hadirToday, "fa-user-check", "bg-emerald", staffRows.length + " petugas terdaftar"),
     kpi("Terlambat", terlambat, "fa-hourglass-half", "bg-gold", "dari " + hadirToday + " yang absen"),
     kpi("Belum absen", belum, "fa-user-clock", "bg-ink", "termasuk yang belum memindai"),
     kpi("Izin / cuti", izinHariIni, "fa-envelope-open-text", "bg-emerald", "disetujui pengelola"),
   ].join("");
 
-  drawChart(rekap7.rows);
+  drawChart(rekap7.rows || []);
 
   pd.table(document.getElementById("today-table"), {
-    rows: rekapToday.rows,
+    rows: todayRows,
     empty: "Belum ada yang absen hari ini.",
     columns: [
       { label: "Nama", render: (r) => pd.esc(r.nama) + '<div class="text-muted small">' + pd.esc(r.jabatan || r.nipd) + "</div>" },
@@ -58,9 +60,9 @@ window.Pages.dashboard = async function (host) {
   });
 
   const hadirIds = {};
-  rekapToday.rows.forEach((r) => { hadirIds[r.nipd] = true; });
+  todayRows.forEach((r) => { hadirIds[r.nipd] = true; });
   (cuti.requests || []).forEach((r) => { hadirIds["izin:" + r.nama] = true; });
-  const missing = staff.staff.filter((s) => !hadirIds[s.nipd] && !hadirIds["izin:" + s.nama]);
+  const missing = staffRows.filter((s) => !hadirIds[s.nipd] && !hadirIds["izin:" + s.nama]);
   const box = document.getElementById("missing-box");
   if (missing.length === 0) {
     box.innerHTML = '<div class="text-success font-weight-semibold"><i class="fas fa-check-circle mr-2"></i>Semua petugas sudah absen atau berizin.</div>';

@@ -110,16 +110,39 @@ window.Pages.devices = async function (host) {
         { label: "Android", render: (r) => '<span class="text-muted small">' + pd.esc(r.os_version || "—") + "</span>" },
         { label: "Terikat", render: (r) => '<span class="small">' + pd.fmtDate(r.first_bound_at) + "</span>" },
         { label: "Terakhir aktif", render: (r) => '<span class="small">' + pd.ago(r.last_seen_at) + "</span>" },
-        { label: "Status", render: (r) => pd.statusBadge(r.status) + (r.revoke_reason ? '<div class="text-muted small">' + pd.esc(r.revoke_reason) + "</div>" : "") },
         {
-          label: "", className: "text-right", render: (r) => r.status === "active"
-            ? '<button class="btn btn-sm btn-outline-danger pd-revoke" data-id="' + pd.esc(r.id) + '" data-nama="' + pd.esc(r.nama) + '"><i class="fas fa-unlink mr-1"></i>Lepas</button>'
-            : "",
+          label: "Status", render: (r) => {
+            let html = pd.statusBadge(r.status);
+            if (r.whitelisted) {
+              const caps = [r.can_manage ? "Pengelola" : null, r.can_attend ? "Absensi" : null].filter(Boolean).join(" + ") || "Terbatas";
+              html += ' <span class="badge badge-soft-gold ml-1">Whitelist: ' + pd.esc(caps) + "</span>";
+              if (r.whitelist_village) html += '<div class="text-muted small">Desa: ' + pd.esc(r.whitelist_village) + "</div>";
+            }
+            if (r.revoke_reason) html += '<div class="text-muted small">' + pd.esc(r.revoke_reason) + "</div>";
+            return html;
+          },
+        },
+        {
+          label: "", className: "text-right", render: (r) => {
+            if (r.status !== "active") return "";
+            let btns = '<div class="btn-group btn-group-sm">';
+            if (superMode) {
+              btns += '<button class="btn btn-outline-primary pd-whitelist" data-id="' + pd.esc(r.id) + '"><i class="fas fa-shield-alt mr-1"></i>Whitelist</button>';
+            }
+            btns += '<button class="btn btn-outline-danger pd-revoke" data-id="' + pd.esc(r.id) + '" data-nama="' + pd.esc(r.nama) + '"><i class="fas fa-unlink mr-1"></i>Lepas</button></div>';
+            return btns;
+          },
         },
       ],
     });
 
     box.onclick = (ev) => {
+      const wl = ev.target.closest("button.pd-whitelist");
+      if (wl) {
+        const row = rows.find((x) => x.id === wl.dataset.id);
+        if (row) whitelistDevice(row, () => load(status));
+        return;
+      }
       const btn = ev.target.closest("button.pd-revoke");
       if (!btn) return;
       revokeDevice(btn.dataset.id, btn.dataset.nama, () => load(status));
@@ -133,6 +156,58 @@ window.Pages.devices = async function (host) {
     btn.classList.add("active");
     load(btn.dataset.status);
   });
+
+
+  async function whitelistDevice(row, onDone) {
+    let villages = [];
+    try {
+      const vRes = await api.get("/super/villages");
+      villages = vRes.villages || [];
+    } catch (e) { /* fallback kosong */ }
+
+    const opts = ['<option value="">— Sesuai akun asal —</option>'].concat(
+      villages.map((v) => '<option value="' + pd.esc(v.id) + '"' + (row.whitelist_village_id === v.id ? " selected" : "") + ">" + pd.esc(v.nama) + " (" + pd.esc(v.kode_desa) + ")</option>")
+    ).join("");
+
+    pd.modal({
+      title: "Whitelist Perangkat — " + row.nama,
+      body:
+        '<p class="text-muted small">Khusus Superadmin: perangkat yang di-whitelist dapat bertindak sebagai Pengelola desa sekaligus perangkat yang dapat melakukan absensi.</p>' +
+        '<div class="custom-control custom-switch mb-3">' +
+        '  <input type="checkbox" class="custom-control-input" id="wl-on"' + (row.whitelisted ? " checked" : "") + '>' +
+        '  <label class="custom-control-label font-weight-semibold" for="wl-on">Aktifkan Whitelist Khusus</label>' +
+        '</div>' +
+        '<div class="form-group"><label>Desa Tujuan (untuk Pengelola &amp; Absensi)</label><select class="form-control" id="wl-vid">' + opts + '</select></div>' +
+        '<div class="custom-control custom-checkbox mb-2">' +
+        '  <input type="checkbox" class="custom-control-input" id="wl-manage"' + (row.can_manage ? " checked" : "") + '>' +
+        '  <label class="custom-control-label" for="wl-manage">Bisa sebagai Pengelola (kelola petugas, lokasi, QR, rekap)</label>' +
+        '</div>' +
+        '<div class="custom-control custom-checkbox">' +
+        '  <input type="checkbox" class="custom-control-input" id="wl-attend"' + (row.whitelisted ? (row.can_attend ? " checked" : "") : " checked") + '>' +
+        '  <label class="custom-control-label" for="wl-attend">Bisa sebagai Perangkat Absensi (scan QR &amp; catat kehadiran)</label>' +
+        '</div>',
+      okText: "Simpan Whitelist",
+      onOk: async ({ node }) => {
+        const whitelisted = node.querySelector("#wl-on").checked;
+        const villageId = node.querySelector("#wl-vid").value || null;
+        const canManage = node.querySelector("#wl-manage").checked;
+        const canAttend = node.querySelector("#wl-attend").checked;
+        if (whitelisted && !villageId && row.role === "superadmin") {
+          pd.toast("Pilih Desa Tujuan agar perangkat Superadmin dapat mengelola & absensi di desa tersebut.", "err");
+          return false;
+        }
+        await api.post("/super/devices/" + row.id + "/whitelist", {
+          whitelisted,
+          villageId,
+          canManage,
+          canAttend,
+        });
+        pd.toast(whitelisted ? "Whitelist perangkat disimpan." : "Whitelist perangkat dinonaktifkan.");
+        await onDone();
+        return true;
+      },
+    });
+  }
 
   function revokeDevice(id, nama, onDone) {
     pd.modal({

@@ -26,7 +26,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -46,7 +48,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import id.desa.presensi.update.AppUpdater
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import id.desa.presensi.data.ThemeMode
@@ -124,6 +128,29 @@ private fun PresensiRoot(vm: MainViewModel) {
             )
         }
         return
+    }
+
+    val context = LocalContext.current
+    val update = state.availableUpdate
+    if (update != null) {
+        AlertDialog(
+            onDismissRequest = { vm.dismissUpdate() },
+            title = { Text("Pembaruan Tersedia (${update.versionName})") },
+            text = { Text(update.notes) },
+            confirmButton = {
+                TextButton(onClick = {
+                    AppUpdater.downloadAndInstall(context, update)
+                    vm.dismissUpdate()
+                }) {
+                    Text("Update Sekarang", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { vm.dismissUpdate() }) {
+                    Text("Lewati")
+                }
+            },
+        )
     }
 
     val showBottomBar = route == Route.Home || route == Route.History || route == Route.Profile

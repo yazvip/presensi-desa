@@ -15,18 +15,30 @@ android {
         applicationId = "id.desa.presensi"
         minSdk = 24
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        val ciCode = (project.findProperty("VERSION_CODE") as String?)?.toIntOrNull() ?: 1
+        val ciName = (project.findProperty("VERSION_NAME") as String?) ?: "1.0.0"
+        versionCode = ciCode
+        versionName = ciName
 
         // Default produksi; CI dapat menimpanya lewat -PAPI_BASE_URL=...
         val base = (project.findProperty("API_BASE_URL") as String?) ?: "https://absen.talangarah.web.id/"
         buildConfigField("String", "API_BASE_URL", "\"$base\"")
     }
 
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
         }
         release {
             isMinifyEnabled = true

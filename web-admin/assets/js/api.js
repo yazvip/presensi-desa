@@ -33,17 +33,26 @@
         throw new ApiError("Tidak dapat menghubungi server. Periksa koneksi.", "NETWORK", 0);
       }
 
+      const contentType = res.headers.get("content-type") || "";
       const text = await res.text();
-      let data = {};
-      try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
+      let data = null;
+      try { data = text ? JSON.parse(text) : {}; } catch { data = null; }
 
       if (res.status === 401) {
         api.clear();
         document.dispatchEvent(new CustomEvent("pd:unauthorized"));
-        throw new ApiError(data.message || "Sesi berakhir. Silakan masuk lagi.", data.code, 401);
+        throw new ApiError((data && data.message) || "Sesi berakhir. Silakan masuk lagi.", data && data.code, 401);
       }
       if (!res.ok) {
-        throw new ApiError(data.message || "Permintaan gagal (" + res.status + ").", data.code, res.status);
+        const msg = (data && data.message)
+          ? data.message
+          : (res.status === 405
+            ? "Endpoint API tidak diteruskan ke backend (Nginx 405). Perbarui konfigurasi Nginx."
+            : "Permintaan gagal (" + res.status + ").");
+        throw new ApiError(msg, data && data.code, res.status);
+      }
+      if (!data || (!contentType.includes("application/json") && text.trim().startsWith("<"))) {
+        throw new ApiError("Server mengembalikan HTML, bukan JSON API. Periksa proxy Nginx untuk /admin/*.", "BAD_GATEWAY", res.status);
       }
       return data;
     },
