@@ -185,6 +185,7 @@ window.Pages.lokasi = async function (host) {
           label: "", className: "text-right", render: (r) =>
             '<div class="btn-group btn-group-sm">' +
             '<button class="btn btn-outline-primary pd-qr" data-id="' + pd.esc(r.id) + '" data-nama="' + pd.esc(r.nama) + '"><i class="fas fa-qrcode mr-1"></i>QR</button>' +
+            '<button class="btn btn-outline-secondary pd-checkpt" data-id="' + pd.esc(r.id) + '" data-nama="' + pd.esc(r.nama) + '"><i class="fas fa-crosshairs mr-1"></i>Uji GPS</button>' +
             '<button class="btn btn-outline-danger pd-rotate" data-id="' + pd.esc(r.id) + '" data-nama="' + pd.esc(r.nama) + '">Ganti QR</button>' +
             "</div>",
         },
@@ -193,8 +194,10 @@ window.Pages.lokasi = async function (host) {
 
     box.onclick = async (ev) => {
       const qr = ev.target.closest("button.pd-qr");
+      const chk = ev.target.closest("button.pd-checkpt");
       const rot = ev.target.closest("button.pd-rotate");
       if (qr) return showQr(qr.dataset.id, qr.dataset.nama, () => load());
+      if (chk) return testPoint(chk.dataset.id, chk.dataset.nama);
       if (rot) {
         const yes = await pd.confirmDialog("Ganti kode QR " + rot.dataset.nama + "? Lembar QR yang sudah dicetak tidak akan berlaku lagi.", { danger: true, okText: "Ganti QR" });
         if (!yes) return;
@@ -300,6 +303,49 @@ window.Pages.lokasi = async function (host) {
     } catch (err) {
       m.node.querySelector("#qr-area").innerHTML = '<div class="alert alert-danger mb-0">' + pd.esc(err.message) + "</div>";
     }
+  }
+
+  function testPoint(officeId, nama) {
+    pd.modal({
+      title: "Uji Titik GPS — " + nama,
+      body:
+        '<div class="form-row">' +
+        '<div class="form-group col-md-6"><label>Latitude</label><input class="form-control" id="chk-lat" inputmode="decimal"></div>' +
+        '<div class="form-group col-md-6"><label>Longitude</label><input class="form-control" id="chk-lng" inputmode="decimal"></div>' +
+        '</div>' +
+        '<button class="btn btn-outline-secondary btn-sm mb-3" id="btn-chk-geo"><i class="fas fa-location-arrow mr-1"></i>Ambil GPS perangkat ini</button>' +
+        '<div id="chk-result"></div>',
+      okText: "Hitung Jarak",
+      onOk: async ({ node }) => {
+        const lat = parseFloat(node.querySelector("#chk-lat").value);
+        const lng = parseFloat(node.querySelector("#chk-lng").value);
+        if (!isFinite(lat) || !isFinite(lng)) {
+          pd.toast("Isi latitude dan longitude dengan benar.", "err");
+          return false;
+        }
+        const res = await api.post("/admin/check-point", { officeId, lat, lng });
+        const box = node.querySelector("#chk-result");
+        box.innerHTML = '<div class="alert ' + (res.inRange ? "alert-success" : "alert-warning") + ' mb-0">' +
+          "Jarak terhitung: <strong>" + res.distanceM + " meter</strong> · " +
+          (res.inRange ? "Di dalam radius kantor." : "Di luar radius kantor.") + "</div>";
+        return false;
+      },
+      onShown: (node) => {
+        node.querySelector("#btn-chk-geo").addEventListener("click", () => {
+          if (!navigator.geolocation) return pd.toast("Perangkat tidak mendukung GPS.", "err");
+          pd.toast("Mengambil koordinat…", "info");
+          navigator.geolocation.getCurrentPosition(
+            (pos) => {
+              node.querySelector("#chk-lat").value = pos.coords.latitude.toFixed(6);
+              node.querySelector("#chk-lng").value = pos.coords.longitude.toFixed(6);
+              pd.toast("Koordinat diambil.");
+            },
+            (err) => pd.toast("Gagal mengambil lokasi: " + err.message, "err"),
+            { enableHighAccuracy: true, timeout: 15000 }
+          );
+        });
+      },
+    });
   }
 
   await load();

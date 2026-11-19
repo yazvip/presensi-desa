@@ -8,10 +8,17 @@ window.Pages.dashboard = async function (host) {
   if (role === "superadmin") return renderSuperadmin(host);
 
   host.innerHTML =
+    '<div class="pd-quick-actions">' +
+    '  <a class="pd-quick-btn" href="#/staff"><i class="fas fa-user-plus"></i>Kelola Petugas</a>' +
+    '  <a class="pd-quick-btn" href="#/lokasi"><i class="fas fa-qrcode"></i>Lokasi &amp; Cetak QR</a>' +
+    '  <a class="pd-quick-btn" href="#/rekap"><i class="fas fa-table"></i>Rekap Absensi</a>' +
+    '  <a class="pd-quick-btn" href="#/cuti"><i class="fas fa-envelope-open-text"></i>Izin &amp; Cuti</a>' +
+    '  <a class="pd-quick-btn" href="#/integritas"><i class="fas fa-shield-alt"></i>Cek Integritas</a>' +
+    "</div>" +
     '<div class="row" id="kpi-row"></div>' +
     '<div class="row">' +
     '  <div class="col-lg-7"><div class="card"><div class="card-header d-flex justify-content-between align-items-center">' +
-    '    <span><i class="fas fa-chart-column mr-2"></i>Kehadiran 7 hari terakhir</span></div>' +
+    '    <span><i class="fas fa-chart-bar mr-2"></i>Kehadiran 7 hari terakhir</span></div>' +
     '    <div class="card-body"><canvas id="chart-7d" height="150"></canvas></div></div></div>' +
     '  <div class="col-lg-5"><div class="card"><div class="card-header"><i class="fas fa-clock mr-2"></i>Absen hari ini</div>' +
     '    <div class="card-body p-0" id="today-table"></div></div></div>' +
@@ -56,7 +63,7 @@ window.Pages.dashboard = async function (host) {
   const missing = staff.staff.filter((s) => !hadirIds[s.nipd] && !hadirIds["izin:" + s.nama]);
   const box = document.getElementById("missing-box");
   if (missing.length === 0) {
-    box.innerHTML = '<div class="text-success"><i class="fas fa-check-circle mr-2"></i>Semua petugas sudah absen atau berizin.</div>';
+    box.innerHTML = '<div class="text-success font-weight-semibold"><i class="fas fa-check-circle mr-2"></i>Semua petugas sudah absen atau berizin.</div>';
   } else {
     box.innerHTML = missing.map((s) =>
       '<span class="badge badge-soft mr-2 mb-2">' + pd.esc(s.nama) + " · " + pd.esc(pd.roleLabel(s.role)) + "</span>"
@@ -68,7 +75,7 @@ function kpi(label, value, icon, cls, sub) {
   return '<div class="col-6 col-lg-3"><div class="small-box ' + cls + '">' +
     '<div class="inner"><h3>' + value + "</h3><p>" + pd.esc(label) + "</p></div>" +
     '<div class="icon"><i class="fas ' + icon + '"></i></div>' +
-    '<div class="small-box-footer px-3 pb-2" style="font-size:.78rem;opacity:.85">' + pd.esc(sub) + "</div>" +
+    '<div class="small-box-footer px-3 pb-2" style="font-size:.78rem;opacity:.88">' + pd.esc(sub) + "</div>" +
     "</div></div>";
 }
 
@@ -84,12 +91,22 @@ function drawChart(rows) {
     type: "bar",
     data: {
       labels: days.map(label),
-      datasets: [{ label: "Petugas hadir", data: counts, backgroundColor: "#14543e", borderRadius: 6, maxBarThickness: 38 }],
+      datasets: [{
+        label: "Petugas hadir",
+        data: counts,
+        backgroundColor: "#0b3b2b",
+        hoverBackgroundColor: "#c8a035",
+        borderRadius: 8,
+        maxBarThickness: 36,
+      }],
     },
     options: {
       responsive: true,
       plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "rgba(15,61,46,.07)" } }, x: { grid: { display: false } } },
+      scales: {
+        y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "rgba(11,59,43,.08)" } },
+        x: { grid: { display: false } },
+      },
     },
   });
 }
@@ -101,6 +118,12 @@ async function renderSuperadmin(host) {
   const tanpaPengelola = villages.filter((v) => !v.pengelola).length;
 
   host.innerHTML =
+    '<div class="pd-quick-actions">' +
+    '  <a class="pd-quick-btn" href="#/desa"><i class="fas fa-landmark"></i>Kelola Desa &amp; Pengelola</a>' +
+    '  <a class="pd-quick-btn" href="#/perangkat"><i class="fas fa-mobile-alt"></i>Perangkat Terikat</a>' +
+    '  <a class="pd-quick-btn" href="#/audit"><i class="fas fa-clipboard-list"></i>Audit Log</a>' +
+    '  <a class="pd-quick-btn" href="#/integritas"><i class="fas fa-shield-alt"></i>Integritas Data</a>' +
+    "</div>" +
     '<div class="row">' +
     kpi("Desa terdaftar", villages.length, "fa-landmark", "bg-emerald", "seluruh desa") +
     kpi("Pengguna aktif", totalUsers, "fa-users", "bg-ink", "petugas + pengelola") +

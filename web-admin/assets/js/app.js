@@ -4,18 +4,18 @@
 
   function routes() {
     return [
-      { path: "/", title: "Ringkasan", icon: "fa-chart-pie", roles: ["admin_desa", "superadmin"], render: window.Pages.dashboard },
-      { path: "/desa", title: "Desa & Pengelola", icon: "fa-landmark", roles: ["superadmin"], render: window.Pages.desa },
-      { path: "/staff", title: "Petugas", icon: "fa-users", roles: ["admin_desa"], render: window.Pages.staff },
-      { path: "/perangkat", title: "Perangkat Terikat", icon: "fa-mobile-alt", roles: ["admin_desa", "superadmin"], render: window.Pages.devices },
-      { path: "/lokasi", title: "Lokasi & QR", icon: "fa-qrcode", roles: ["admin_desa"], render: window.Pages.lokasi },
-      { path: "/jadwal", title: "Jam Kerja", icon: "fa-clock", roles: ["admin_desa"], render: window.Pages.jadwal },
-      { path: "/rekap", title: "Rekap Absensi", icon: "fa-table", roles: ["admin_desa"], render: window.Pages.rekap },
-      { path: "/cuti", title: "Izin & Cuti", icon: "fa-envelope-open-text", roles: ["admin_desa"], render: window.Pages.cuti },
-      { path: "/anomali", title: "Anomali", icon: "fa-exclamation-triangle", roles: ["admin_desa"], render: window.Pages.anomali },
-      { path: "/integritas", title: "Integritas Data", icon: "fa-shield-alt", roles: ["admin_desa", "superadmin"], render: window.Pages.integritas },
-      { path: "/audit", title: "Audit Log", icon: "fa-clipboard-list", roles: ["superadmin"], render: window.Pages.audit },
-      { path: "/profil", title: "Profil", icon: "fa-id-card", roles: ["admin_desa", "superadmin"], render: window.Pages.profil },
+      { path: "/", title: "Ringkasan", icon: "fa-chart-pie", group: "Utama", roles: ["admin_desa", "superadmin"], render: window.Pages.dashboard },
+      { path: "/desa", title: "Desa & Pengelola", icon: "fa-landmark", group: "Manajemen", roles: ["superadmin"], render: window.Pages.desa },
+      { path: "/staff", title: "Petugas", icon: "fa-users", group: "Operasional", roles: ["admin_desa"], render: window.Pages.staff },
+      { path: "/perangkat", title: "Perangkat Terikat", icon: "fa-mobile-alt", group: "Operasional", roles: ["admin_desa", "superadmin"], render: window.Pages.devices },
+      { path: "/lokasi", title: "Lokasi & QR", icon: "fa-qrcode", group: "Operasional", roles: ["admin_desa"], render: window.Pages.lokasi },
+      { path: "/jadwal", title: "Jam Kerja", icon: "fa-clock", group: "Operasional", roles: ["admin_desa"], render: window.Pages.jadwal },
+      { path: "/rekap", title: "Rekap Absensi", icon: "fa-table", group: "Laporan & Keamanan", roles: ["admin_desa"], render: window.Pages.rekap },
+      { path: "/cuti", title: "Izin & Cuti", icon: "fa-envelope-open-text", group: "Laporan & Keamanan", roles: ["admin_desa"], render: window.Pages.cuti },
+      { path: "/anomali", title: "Anomali", icon: "fa-exclamation-triangle", group: "Laporan & Keamanan", roles: ["admin_desa"], render: window.Pages.anomali },
+      { path: "/integritas", title: "Integritas Data", icon: "fa-shield-alt", group: "Laporan & Keamanan", roles: ["admin_desa", "superadmin"], render: window.Pages.integritas },
+      { path: "/audit", title: "Audit Log", icon: "fa-clipboard-list", group: "Laporan & Keamanan", roles: ["superadmin"], render: window.Pages.audit },
+      { path: "/profil", title: "Profil & PIN", icon: "fa-id-card", group: "Akun", roles: ["admin_desa", "superadmin"], render: window.Pages.profil },
     ];
   }
 
@@ -27,11 +27,18 @@
   function buildSidebar() {
     const nav = document.getElementById("sidebar-nav");
     const current = currentPath();
-    nav.innerHTML = visibleRoutes().map((r) =>
-      '<li class="nav-item">' +
-      '<a class="nav-link' + (r.path === current ? " active" : "") + '" href="#' + r.path + '">' +
-      '<i class="nav-icon fas ' + r.icon + '"></i><p>' + pd.esc(r.title) + "</p></a></li>"
-    ).join("");
+    let lastGroup = "";
+    nav.innerHTML = visibleRoutes().map((r) => {
+      let header = "";
+      if (r.group && r.group !== lastGroup) {
+        lastGroup = r.group;
+        header = '<li class="nav-header">' + pd.esc(r.group) + "</li>";
+      }
+      return header +
+        '<li class="nav-item">' +
+        '<a class="nav-link' + (r.path === current ? " active" : "") + '" href="#' + r.path + '">' +
+        '<i class="nav-icon fas ' + r.icon + '"></i><p>' + pd.esc(r.title) + "</p></a></li>";
+    }).join("");
   }
 
   function currentPath() {
@@ -125,7 +132,7 @@
       errBox.classList.remove("d-none");
     } finally {
       btn.disabled = false;
-      btn.textContent = "Masuk";
+      btn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>Masuk ke Panel';
     }
   }
 
@@ -133,6 +140,7 @@
     document.getElementById("login-form").addEventListener("submit", onSubmit);
     document.getElementById("btn-logout").addEventListener("click", async (e) => {
       e.preventDefault();
+      await api.post("/auth/logout").catch(() => {});
       api.clear();
       location.hash = "#/";
       location.reload();
